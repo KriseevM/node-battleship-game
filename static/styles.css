@@ -1,0 +1,57 @@
+td.fieldCell {
+    width: 3rem;
+    height: 3rem;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid black;
+    transition: 0.8s;
+}
+
+td.cell:hover {
+    background-color: cornflowerblue;
+    transition: 0.5s;
+}
+
+div.fieldContainer {
+    display: inline-block;
+    margin: 20px;
+}
+h1, h2{
+    text-align: center;
+}
+
+td.cell.ownShip {
+    background-color: blue;
+    transition: 0.8s;
+}
+td.cell.ownShip:hover {
+    background-color: red;
+    transition: 0.5s;
+}
+
+td.enemyField {
+    transition: 0.8s;
+}
+td.enemyField:hover:not(.miss,.hit) {
+    background-color: darkmagenta;
+}
+td.enemyField.miss {
+	background: url('/static/images/circle.png') no-repeat center center;
+	background-size: 1em;
+}
+td.enemyField.hit {
+    background: url('/static/images/cross.png') no-repeat center center;
+    background-size: 2em;
+}
+
+td.ownField.ship {
+    background-color: blue;
+}
+td.ownField.miss {
+	background: url('/static/images/circle.png') no-repeat center center;
+	background-size: 1em;
+}
+td.ownField.hit {
+    background: url('/static/images/cross.png') no-repeat center center;
+    background-size: 2em;
+}
