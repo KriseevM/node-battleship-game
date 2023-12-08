@@ -114,7 +114,6 @@ class Game {
                 throw new Error('Point was selected already');
             }
         }
-        openedCells.push([x, y]);
         for (const ship of ships) {
             for (const point of ship.points) {
                 if (point[0] === x && point[1] === y) {
@@ -140,11 +139,13 @@ class Game {
                             result.finished = true;
                         }
                     }
+                    openedCells.push([x, y, true]);
                     return result;
                 }
             }
         }
         this.#currentTurn = this.#currentTurn === 0 ? 1 : 0;
+        openedCells.push([x, y, false]);
         return { x: x, y: y, hit: false };
     }
 

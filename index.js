@@ -18,8 +18,10 @@ const staticOptions = {
 let game = null;
 let hostId = null;
 let guestId = null;
-
 let gameloopLongpollSubscribers = [];
+
+let hostReady = false;
+let guestReady = false;
 
 app.use('/static', express.static('static', staticOptions));
 app.use(bodyParser.json());
@@ -144,14 +146,25 @@ app.post('/startGame', (req, res) => {
         res.end(JSON.stringify({ success: false, error: "The game isn't created yet" }));
         return;
     }
-    if (req.body.playerId !== hostId) {
+    if (req.body.playerId !== hostId && req.body.playerId !== guestId) {
         res.status(403);
-        res.end(JSON.stringify({ success: false, error: "Only host can start the game" }));
+        res.end(JSON.stringify({ success: false, error: "Unrecognized player" }));
         return;
     }
-    let result = game.startGame();
-    if (result) {
-        notifyLongpollSubscribers(gameloopLongpollSubscribers, 'gamestart');
+    if (game.ships1.length === 10 && game.ships2.length === 10) {
+        if (req.body.playerId === hostId) {
+            hostReady = true;
+        }
+        else {
+            guestReady = true;
+        }
+        res.end(JSON.stringify({ success: true }));
+    }
+    if (hostReady && guestReady) {
+        let result = game.startGame();
+        if (result) {
+            notifyLongpollSubscribers(gameloopLongpollSubscribers, 'gamestart');
+        }
     }
 });
 
@@ -219,6 +232,7 @@ app.delete('/deleteShip', (req, res) => {
             let result = { success: shipDeleted !== false };
             if (result.success) {
                 result.ship = shipDeleted;
+                hostReady = false;
             }
             res.end(JSON.stringify(result));
         } else if (req.body.playerId === guestId) {
@@ -226,6 +240,7 @@ app.delete('/deleteShip', (req, res) => {
             let result = { success: shipDeleted !== false };
             if (result.success) {
                 result.ship = shipDeleted;
+                guestReady = false;
             }
             res.end(JSON.stringify(result));
         } else {

@@ -53,20 +53,11 @@ fetch('/gameState').then(async (value) => {
                             cellElement.classList.add('miss');
                         }
                     }
-                    for (const ship of loadedCells.enemyDeadShips.map(s => new Battleship(s))) {
-                        for (const cell of ship.points) {
-                            let cellElement = document.getElementById(`enemyField-${cell[0]}-${cell[1]}`);
-                            cellElement.classList.add('hit');
-                            cellElement.innerHTML += '';
-                        }
-
-                    }
                     for (const cell of loadedCells.enemyOpenedCells) {
                         let cellElement = document.getElementById(`enemyField-${cell[0]}-${cell[1]}`);
                         if (cellElement === null) continue;
-                        if (cellElement.classList.contains('hit')) continue;
-                        cellElement.classList.add('miss');
-                        cellElement.innerHTML += '';
+                        cellElement.classList.add(cell[2] ? "hit" : 'miss');
+                        cellElement.replaceWith(cellElement.cloneNode());
                     }
                 }
                 else {
@@ -127,7 +118,8 @@ async function restoreMyShips() {
         for (const cell of points) {
             let cellElement = document.getElementById(`cell-${cell[0]}-${cell[1]}`);
             cellElement.classList.add('ownShip');
-            cellElement.innerHTML += '';
+            cellElement.replaceWith(cellElement.cloneNode());
+            cellElement = document.getElementById(`cell-${cell[0]}-${cell[1]}`);
             cellElement.addEventListener("click", (e) => {
                 e.stopImmediatePropagation();
                 occupiedCellClick(cell[1], cell[0]);
@@ -214,7 +206,8 @@ async function freeCellClick(row, column) {
         for (const p of ship.points) {
             let el = document.getElementById(`cell-${p[0]}-${p[1]}`);
             el.classList.add('ownShip');
-            el.innerHTML += '';
+            el.replaceWith(el.cloneNode());
+            el = document.getElementById(`cell-${p[0]}-${p[1]}`);
             el.addEventListener("click", (e) => {
                 e.stopImmediatePropagation();
                 occupiedCellClick(p[1], p[0]);
@@ -228,21 +221,20 @@ async function freeCellClick(row, column) {
 }
 function onReadyMessage(msg) {
     if (msg === 'ready') {
-        if (role === 'host') {
-            let button = document.createElement('button');
-            button.innerHTML = "Start";
-            button.id = 'startBtn';
-            button.addEventListener('click', (e) => {
-                fetch('/startGame', {
-                    method: "POST",
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ playerId: window.sessionStorage.getItem('id') })
-                });
+
+        let button = document.createElement('button');
+        button.innerHTML = "Start";
+        button.id = 'startBtn';
+        button.addEventListener('click', (e) => {
+            fetch('/startGame', {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ playerId: window.sessionStorage.getItem('id') })
             });
-            document.body.append(button);
-        }
+        });
+        document.body.append(button);
         longpoll().then(onGameStartMessage);
     }
     else {
@@ -296,7 +288,8 @@ async function occupiedCellClick(row, column) {
         for (const deletedPoint of (new Battleship(data.ship)).points) {
             let cell = document.getElementById(`cell-${deletedPoint[0]}-${deletedPoint[1]}`);
             cell.classList.remove('ownShip');
-            cell.innerHTML += '';
+            cell.replaceWith(cell.cloneNode());
+            cell = document.getElementById(`cell-${deletedPoint[0]}-${deletedPoint[1]}`);
             cell.addEventListener("click", (e) => {
                 e.stopImmediatePropagation();
                 freeCellClick(deletedPoint[1], deletedPoint[0]);
@@ -304,10 +297,7 @@ async function occupiedCellClick(row, column) {
         }
     }
 }
-async function askToPlaceShip(column, row) {
 
-
-}
 
 function drawField(title, cellClickCallback, cellIdPrefix = 'cell') {
     let container = document.createElement('div');
@@ -329,10 +319,9 @@ function drawField(title, cellClickCallback, cellIdPrefix = 'cell') {
             cell.classList.add(cellIdPrefix);
             cell.id = `${cellIdPrefix}-${j}-${i}`;
             if (cellClickCallback !== undefined && cellClickCallback !== null) {
-                console.log(cellClickCallback);
                 cell.addEventListener("click", (e) => {
                     e.stopImmediatePropagation();
-                    cellClickCallback(i, j)
+                    cellClickCallback(i, j);
                 });
             }
             row.append(cell);
@@ -362,7 +351,8 @@ function gameloopLongpollHandler(msg) {
     if (data.hit === false) {
         if (myTurn) {
             let cell = document.getElementById(`enemyField-${data.x}-${data.y}`);
-            cell.innerHTML += '';
+            cell.replaceWith(cell.cloneNode());
+            cell = document.getElementById(`enemyField-${data.x}-${data.y}`);
             cell.classList.add('miss');
         }
         else {
@@ -374,7 +364,8 @@ function gameloopLongpollHandler(msg) {
     else if (data.hit === true) {
         if (myTurn) {
             let cell = document.getElementById(`enemyField-${data.x}-${data.y}`);
-            cell.innerHTML += '';
+            cell.replaceWith(cell.cloneNode());
+            cell = document.getElementById(`enemyField-${data.x}-${data.y}`);
             cell.classList.add('hit');
             if (data.kill) {
                 let ship = new Battleship(data.ship);
@@ -416,8 +407,8 @@ function displayKilledShip(ship, fieldIdPrefix) {
                 if (cell.classList.contains('hit') || cell.classList.contains('miss')) {
                     continue;
                 }
-                cell.innerHTML += '';
                 cell.classList.add('miss');
+                cell.replaceWith(cell.cloneNode());
             }
         }
     }
