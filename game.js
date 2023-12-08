@@ -7,6 +7,9 @@ class Game {
     #openedCells2;
     #currentTurn;
     #started;
+    #timeStarted;
+    #timeEnded;
+
     constructor() {
         this.#ships1 = [];
         this.#ships2 = [];
@@ -14,6 +17,8 @@ class Game {
         this.#openedCells2 = [];
         this.#currentTurn = 0;
         this.#started = false;
+        this.#timeStarted = null;
+        this.#timeEnded = null;
     }
     get currentTurn() {
         return this.#currentTurn;
@@ -33,6 +38,13 @@ class Game {
     get ships2() {
         return this.#ships2;
     }
+    get timeStarted() {
+        return this.#timeStarted;
+    }
+    get timeEnded() {
+        return this.#timeEnded;
+    }
+
     placeShip(player, ship, bothReadyCallback) {
         if (this.#started) {
             throw new Error('The game has started already')
@@ -137,6 +149,7 @@ class Game {
                         result.ship = ship;
                         if (ships.filter(s => !s.isDead).length === 0) {
                             result.finished = true;
+                            this.#timeEnded = Date.now();
                         }
                     }
                     openedCells.push([x, y, true]);
@@ -175,6 +188,7 @@ class Game {
         }
         if (this.#ships1.length >= 10 && this.#ships2.length >= 10) {
             this.#started = true;
+            this.#timeStarted = Date.now();
         }
         return this.#started;
     }

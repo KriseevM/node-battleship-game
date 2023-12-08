@@ -1,14 +1,15 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import OPEN_READWRITE from 'sqlite3';
+import sqlite3 from 'sqlite3';
 import { Game } from './game.js';
 import { Battleship } from './static/battleship.js';
 
+const db = new sqlite3.Database('games.db');
 
 const app = express();
 
 const port = 8080;
-
-const games = new Map();
 
 const staticOptions = {
     dotfiles: 'ignore',
@@ -127,6 +128,11 @@ app.post('/shoot', (req, res) => {
         let result = game.shoot(req.body.x, req.body.y);
         notifyLongpollSubscribers(gameloopLongpollSubscribers, JSON.stringify(result));
         if (result.finished) {
+            db.run('INSERT INTO games (beginTime, endTime, winner) VALUES (?, ?, ?)', [game.timeStarted, game.timeEnded, game.currentTurn], (error) => {
+                if (error !== null) {
+                    console.log(error);
+                }
+            });
             game = null;
         }
         res.end(JSON.stringify({ success: true }));
@@ -253,6 +259,98 @@ app.delete('/deleteShip', (req, res) => {
     }
 })
 
+const dbErrorHtml = `<!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset="utf-8">
+        </head>
+        <body>
+            Не удалось получить данные из базы данных :(
+        </body>
+    </html>`;
+app.get('/gameresults', (req, res) => {
+    res.type('html');
+    if (req.query.page && req.query.page > 1) {
+        db.all('SELECT id, beginTime, endTime - beginTime as duration, winner FROM games LIMIT 5 OFFSET ?', [(req.query.page - 1) * 5], (err, rows) => {
+            if (err !== null) {
+                console.log(err);
+                res.end(dbErrorHtml);
+                return;
+            }
+            if (rows.length === 0) {
+                sendGamesFromDatabaseFirstPage(res);
+                return;
+            }
+            db.get('SELECT (CASE WHEN COUNT(*)%5 = 0 THEN COUNT(*) / 5 ELSE COUNT(*) / 5 + 1 END) as count FROM games;', [], (err, row) => {
+                if (err !== null) {
+                    console.log(err);
+                    res.end(dbErrorHtml);
+                    return;
+                }
+                res.end(generateHtmlForGamesData(rows, row.count, +req.query.page));
+            });
+        });
+    }
+    else {
+        sendGamesFromDatabaseFirstPage(res);
+    }
+});
+
 app.listen(port);
 
 console.log("Started listening on port", port);
+
+function generateHtmlForGamesData(rows, totalPages, currentPage) {
+    let result =
+        `<!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset="utf-8">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        </head>
+        <body>
+        <table class="table">
+        <thead>
+        <tr><th>ID</th><th>Начало</th><th>Длительность</th><th>Победитель</th></tr>
+        </thead><tbody>
+        `;
+    for (const row of rows) {
+        result += `<tr><td>${row.id}</td><td>${(new Date(row.beginTime).toLocaleString())}</td><td>${row.duration / 1000} секунд</td><td>Игрок ${row.winner + 1}</td></tr>`
+    }
+    result += '</tbody></table>';
+    result += '<nav><ul class="pagination">'
+    result += `<li class="page-item${currentPage > 1 ? "": " disabled"}"><a class="page-link" href="/gameresults?page=${currentPage - 1}">Предыдущая</a></li>`
+    for (let i = 0; i < totalPages; i++) {
+        let page = i + 1;
+        result += '<li class="page-item">';
+        if (page === currentPage) {
+            result += `<a class="page-link" href="#"><b>${page}</b></a>`;
+        }
+        else {
+            result += `<a class="page-link" href="/gameresults?page=${page}">${page}</a>`;
+        }
+        result += '</li>';
+    }
+
+    result += `<li class="page-item${currentPage < totalPages ? "" : " disabled"}"><a class="page-link" href="/gameresults?page=${currentPage + 1}">Следующая</a></li>`;
+    result += '</ul></nav></body></html>';
+    return result;
+}
+
+function sendGamesFromDatabaseFirstPage(res) {
+    db.all('SELECT id, beginTime, endTime - beginTime as duration, winner FROM games LIMIT 5;', [], (err, rows) => {
+        if (err !== null) {
+            console.log(err);
+            res.end(dbErrorHtml);
+            return;
+        }
+        db.get('SELECT (CASE WHEN COUNT(*)%5 = 0 THEN COUNT(*) / 5 ELSE COUNT(*) / 5 + 1 END) as count FROM games;', [], (err, row) => {
+            if (err !== null) {
+                console.log(err);
+                res.end(dbErrorHtml);
+                return;
+            }
+            res.end(generateHtmlForGamesData(rows, row.count, 1));
+        });
+    });
+}
